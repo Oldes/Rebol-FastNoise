@@ -1,0 +1,132 @@
+name: 'Rebol-FastNoise2 CI'
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+#  push:
+#    branches: [ master ]
+#  pull_request:
+#    branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Siskin Builder
+      uses: oldes/install-siskin@v0.21.0
+
+    - name: Build 32bit Rebol/FastNoise2 extension
+      run: ./siskin Rebol-FastNoise2.nest -o ./fastnoise2-windows-x86.rebx --msvc fastnoise2-windows-x86
+
+    - name: Build 64bit Rebol/FastNoise2 extension
+      run: ./siskin Rebol-FastNoise2.nest -o ./fastnoise2-windows-x64.rebx --msvc fastnoise2-windows-x64
+
+    - name: Minimal Rebol/FastNoise2 extension test
+      run:  ./siskin --script ci-test.r3
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Rebol-FastNoise2-Windows-CI-${{github.run_id}}
+        path: ./*.rebx
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Siskin Builder
+      uses: oldes/install-siskin@v0.21.0
+
+    - name: Build 64bit Rebol/FastNoise2 extension
+      run: ./siskin Rebol-FastNoise2.nest -o ./fastnoise2-linux-x64.rebx --gzip fastnoise2-linux-x64
+
+    - name: Minimal Rebol/FastNoise2 extension test
+      run:  ./siskin --script ci-test.r3
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Rebol-FastNoise2-Linux-CI-${{github.run_id}}
+        path: ./*.gz
+
+  macos:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Siskin Builder
+      uses: oldes/install-siskin@v0.21.0
+
+    - name: Build 64bit Rebol/FastNoise2 extension
+      run: ./siskin Rebol-FastNoise2.nest -o ./fastnoise2-macos-x64.rebx --gzip fastnoise2-macos-x64
+
+    - name: Minimal Rebol/FastNoise2 extension test
+      run:  ./siskin ci-test.r3
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Rebol-FastNoise2-macOS-CI-${{github.run_id}}
+        path: ./*.gz
+
+#  Haiku-x86:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Login to Docker Hub
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+#          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+#
+#      - name: Download Haiku Rebol-dev container
+#        run: docker pull docker.io/oldes/rebol-dev:haiku-x86
+#
+#      - name: Build all Rebol/FastNoise2 for Haiku OS x86
+#        run: docker run --rm -v $PWD:/siskin oldes/rebol-dev:haiku-x86 bash -c 'cd /siskin; rebol siskin.r3 Rebol-FastNoise2.nest fastnoise2-haiku-x86'
+#
+#      - name: Compress result before uploading
+#        run: |
+#          sudo mv ./build/fastnoise2-haiku-x86.so ./fastnoise2-haiku-x86.rebx
+#          sudo gzip -9 ./fastnoise2-haiku-x86.rebx
+#
+#      - uses: actions/upload-artifact@v3
+#        with:
+#          name: Rebol-FastNoise2-CI-${{github.run_id}}
+#          path: ./fastnoise2-*.gz
+#
+#  Haiku-x64:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Login to Docker Hub
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+#          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+#
+#      - name: Download Haiku Rebol-dev container
+#        run: docker pull docker.io/oldes/rebol-dev:haiku-x64
+#
+#      - name: Build all Rebol/FastNoise2 for Haiku OS x64
+#        run: docker run --rm -v $PWD:/siskin oldes/rebol-dev:haiku-x64 bash -c 'cd /siskin; rebol siskin.r3 Rebol-FastNoise2.nest fastnoise2-haiku-x64'
+#
+#      - name: Compress result before uploading
+#        run: |
+#          sudo mv ./build/fastnoise2-haiku-x64.so ./fastnoise2-haiku-x64.rebx
+#          sudo gzip -9 ./fastnoise2-haiku-x64.rebx
+#
+#      - uses: actions/upload-artifact@v3
+#        with:
+#          name: Rebol-FastNoise2-CI-${{github.run_id}}
+#          path: ./fastnoise2-*.gz
+#
+#

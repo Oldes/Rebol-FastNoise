@@ -1,0 +1,223 @@
+;-    .-.
+;-   /'v'\   SISKIN-Builder project file
+;-  (/uOu\)  https://github.com/Siskin-framework/Builder/
+;-===="="=======================================================================
+
+;; FastNoise2 fetches FastSIMD itself (CPMAddPackage) at configure time and
+;; installs it next to FastNoise: libFastNoise, libFastSIMD_FastNoise (the
+;; per-CPU dispatch code) and libFastSIMD.
+github: Auburn/FastNoise2 /v1.1.1
+
+version: 0.1.0
+
+compiler: clang
+arch:     x64
+optimize: 2
+
+;define: USE_TRACES
+
+;- options common for all Rebol extensions ----------------------
+#if Windows? [
+	define: TO_WINDOWS
+	define: _CRT_SECURE_NO_WARNINGS
+	set-env CMAKE_GEN: {-G "Visual Studio 17 2022"}
+]
+#if macOS?   [
+	define: TO_OSX
+	define: HAS_BOOL
+	set-env CMAKE_GEN: ""
+]
+#if Linux? [
+	define: TO_LINUX
+	compiler: gcc
+	set-env CMAKE_GEN: ""
+	cflags: -fvisibility=hidden
+]
+
+define: ENDIAN_LITTLE
+;; Selects the amalgamated `rebol-extension.h` in the generated header.
+define: REB_EXT
+
+target-x86: [
+	;- On linux needs:  sudo apt install gcc-multilib g++-multilib
+	arch: x86
+	set ARCH_NAME: "x86"
+	set SISKIN_INSTALL_PREFIX: "$SISKIN_INSTALL/$INSTALL_SUFFIX/x86"
+	#if macOS?   [ fail "It is not possible to make 32bit build on macos" ]
+	#if Posix?   [
+		set CMAKE_ARCH: "-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32"
+	]
+	#if Windows? [
+		set CMAKE_ARCH: "-A Win32"
+	]
+]
+target-x64: [
+	arch: x64
+	set ARCH_NAME: "x64"
+	set SISKIN_INSTALL_PREFIX: "$SISKIN_INSTALL/$INSTALL_SUFFIX/x64"
+	defines: [
+		_FILE_OFFSET_BITS=64
+		__LP64__ ; has long (integer) 64 bits
+	]
+	#if Windows? [ set CMAKE_ARCH: "-A x64" ]
+	#if Posix?   [ set CMAKE_ARCH: ""]
+	#if macOS?   [
+		flags: ["-arch x86_64"]
+		set CMAKE_ARCH: [
+			"-DCMAKE_OSX_SYSROOT=macosx"
+			"-DCMAKE_OSX_ARCHITECTURES=x86_64"
+			"-DCMAKE_APPLE_SILICON_PROCESSOR=x86_64" ;; make CMake treat the build as x86_64, not the arm64 host
+			"-DCMAKE_OSX_DEPLOYMENT_TARGET=10.15"
+		]
+	]
+]
+;; FastSIMD has a NEON backend, used for AArch64.
+target-arm64: [
+	arch: arm64
+	set ARCH_NAME: "arm64"
+	set SISKIN_INSTALL_PREFIX: "$SISKIN_INSTALL/$INSTALL_SUFFIX/arm64"
+	define: _FILE_OFFSET_BITS=64
+	define: __LP64__ ; has long (integer) 64 bits
+	define: __arm64__
+	#if Posix? [
+		#either macOS? [
+			flags: "-target arm64-apple-darwin"
+			set CMAKE_ARCH: [
+				"-DCMAKE_OSX_SYSROOT=macosx"
+				"-DCMAKE_OSX_ARCHITECTURES=arm64"
+				"-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0"
+			]
+		][
+			;- Needs:  sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+			set CMAKE_ARCH: [
+				"-DCMAKE_SYSTEM_NAME=Linux"
+				"-DCMAKE_SYSTEM_PROCESSOR=aarch64"
+				"-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc"
+				"-DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++"
+			]
+		]
+	]
+	#if Windows? [
+		set CMAKE_ARCH: "-A arm64"
+	]
+]
+;----------------------------------------------------------------
+
+
+;----------------------------------------------------------------
+;- extension sources are built out of the Rebol tree -------------
+r3-extension: [
+	flags: shared
+	strip: on
+	source: %src/
+	;; FastNoise installs its headers as include/FastNoise/*.h
+	include: %$SISKIN_INSTALL_PREFIX/include/
+	library: %$SISKIN_INSTALL_PREFIX/lib/
+	;; Plain C - FastNoise_C.h is the library's C API. Only the C++
+	;; runtime is needed, for the library itself.
+	files: only [
+		%fastnoise.c
+		%fastnoise-commands.c
+		%gen-fastnoise.c
+	]
+	;; Order matters for static linking: users before what they use.
+	library: %FastNoise
+	;library: %FastSIMD_FastNoise
+	;library: %FastSIMD
+	#if macOS? [
+		compiler: clang
+		library: %c++
+		lflag:  "-dynamiclib"
+		cflag:  "-mmacosx-version-min=10.15"
+		;; Export only the extension entry points.
+		lflag: "-Wl,-exported_symbol,_RX_Init -Wl,-exported_symbol,_RX_Quit -Wl,-exported_symbol,_RX_Call -Wl,-exported_symbol,_RX_Abi"
+		lflag: "-Wl,-dead_strip"
+	]
+	#if Posix? [
+		cflags: [-fPIC -pthread]
+		libraries: [%pthread]
+	]
+	#if Linux? [
+		lflag: "-Wl,--exclude-libs,ALL"
+		lflag: "-Wl,--gc-sections"
+		lflag: "-Wl,--no-undefined"   ;; fail at link time, not at load time
+		library: %stdc++
+		library: %pthread
+		library: %m
+	]
+	#if Windows? [
+		upx: on
+	]
+	;- generate the extension header and command table -------------
+	;; Produces %src/gen-fastnoise.h and %src/gen-fastnoise.c, and
+	;; refreshes %README.md's reference section.
+	do %make-extension.r3 [%src/fastnoise.reb "--readme"]
+]
+
+link-static: [
+	set CMAKE_LINK: "-DBUILD_SHARED_LIBS=OFF"
+	set INSTALL_SUFFIX: "static"
+	set DIR_SUFFIX: ""
+	;; Utility/Export.h uses it to drop the dllimport decoration
+	;; (CMake makes it PUBLIC on the target only for CMake consumers)
+	define: FASTNOISE_STATIC_LIB
+]
+link-shared: [
+	set CMAKE_LINK: "-DBUILD_SHARED_LIBS=ON"
+	set INSTALL_SUFFIX: "shared"
+	set DIR_SUFFIX: "-shared"
+]
+
+cmake-build: [
+	set CMAKE_COMMON: [
+		"-DCMAKE_BUILD_TYPE=Release"
+		"-DCMAKE_VERBOSE_MAKEFILE=OFF"
+		"-DCMAKE_POSITION_INDEPENDENT_CODE=ON" ;; linked into a shared extension
+		"-DCMAKE_INSTALL_LIBDIR=lib"           ;; not lib64 or a multiarch dir
+		;; FIXME: option names to be checked against FastNoise2's root CMakeLists.txt
+		"-DFASTNOISE2_TOOLS=OFF"               ;; no Node Editor (pulls in GUI deps)
+		"-DFASTNOISE2_TESTS=OFF"
+		"-DCMAKE_INSTALL_PREFIX=$SISKIN_INSTALL_PREFIX"
+	;- Above defined based on target
+		"$CMAKE_ARCH"
+		"$CMAKE_LINK"
+	]
+	cmd "cmake --fresh -B $SISKIN_TEMP/fastnoise-$ARCH_NAME$DIR_SUFFIX $CMAKE_GEN -S FastNoise2 $CMAKE_COMMON"
+	cmd "cmake --build    $SISKIN_TEMP/fastnoise-$ARCH_NAME$DIR_SUFFIX --config release -j 8"
+	cmd "cmake --install  $SISKIN_TEMP/fastnoise-$ARCH_NAME$DIR_SUFFIX --config release"
+]
+
+eggs: [
+	"Cmake FastNoise2 static - x86"  [ name: %cmake-fastnoise-x86          :link-static :target-x86   :cmake-build ]
+	"Cmake FastNoise2 static - x64"  [ name: %cmake-fastnoise-x64          :link-static :target-x64   :cmake-build ]
+	"Cmake FastNoise2 static - arm64"[ name: %cmake-fastnoise-arm64        :link-static :target-arm64 :cmake-build ]
+	"Cmake FastNoise2 shared - x86"  [ name: %cmake-fastnoise-shared-x86   :link-shared :target-x86   :cmake-build ]
+	"Cmake FastNoise2 shared - x64"  [ name: %cmake-fastnoise-shared-x64   :link-shared :target-x64   :cmake-build ]
+	"Cmake FastNoise2 shared - arm64"[ name: %cmake-fastnoise-shared-arm64 :link-shared :target-arm64 :cmake-build ]
+
+	"Rebol FastNoise static extension: x86" [
+		name: %fastnoise-x86
+		:link-static :target-x86 :r3-extension
+	]
+	"Rebol FastNoise static extension: x64" [
+		name: %fastnoise-x64
+		:link-static :target-x64 :r3-extension
+	]
+	"Rebol FastNoise static extension: arm64" [
+		name: %fastnoise-arm64
+		:link-static :target-arm64 :r3-extension
+	]
+
+	"Rebol FastNoise shared extension: x86" [
+		name: %fastnoise-shared-x86
+		:link-shared :target-x86 :r3-extension
+	]
+	"Rebol FastNoise shared extension: x64" [
+		name: %fastnoise-shared-x64
+		:link-shared :target-x64 :r3-extension
+	]
+	"Rebol FastNoise shared extension: arm64" [
+		name: %fastnoise-shared-arm64
+		:link-shared :target-arm64 :r3-extension
+	]
+]

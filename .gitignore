@@ -1,0 +1,12 @@
+/*
+!/.gitignore
+!/.github
+!/.editorconfig
+!*.nest
+!/src
+!/assets
+!/README.md
+!/LICENSE
+!*.r3
+*/gen-*
+.DS_Store
