@@ -1,3 +1,5 @@
+[![rebol-fastnoise](https://github.com/user-attachments/assets/df1e9be8-451f-4889-9e03-2473ec51a76c)](https://github.com/Oldes/Rebol-FastNoise)
+
 # Rebol/FastNoise
 
 Rebol3 extension for [FastNoise2](https://github.com/Auburn/FastNoise2) - SIMD noise
