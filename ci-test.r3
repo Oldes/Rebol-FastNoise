@@ -1,7 +1,23 @@
 Rebol [title: "Rebol/FastNoise extension smoke test"]
 
+print ["Running test on Rebol build:" mold to-block system/build]
+system/options/quiet: false
+system/options/log/rebol: 4
+
+;; make sure that we load a fresh extension
 try [system/modules/fastnoise: none]
+
+if modules-dir: get-env 'REBOL_MODULES_DIR [
+    system/options/modules: to-real-file modules-dir
+    ls (system/options/modules)
+]
+
+;; import the extension
 fn: import 'fastnoise
+
+print as-yellow "Content of the module..."
+? fn
+
 
 fails: 0
 check: func [name [string!] code [block!] /local r][
