@@ -1,10 +1,10 @@
 name: 'Rebol-FastNoise2 CI'
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
-#  push:
-#    branches: [ master ]
-#  pull_request:
-#    branches: [ master ]
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -14,10 +14,10 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Install Siskin Builder
-      uses: oldes/install-siskin@v0.21.0
+      uses: oldes/install-siskin@v0.23.3
 
     - name: Build 32bit Rebol/FastNoise2 extension
       run: ./siskin Rebol-FastNoise2.nest -o ./fastnoise2-windows-x86.rebx --msvc fastnoise2-windows-x86
@@ -28,7 +28,7 @@ jobs:
     - name: Minimal Rebol/FastNoise2 extension test
       run:  ./siskin --script ci-test.r3
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         name: Rebol-FastNoise2-Windows-CI-${{github.run_id}}
         path: ./*.rebx
@@ -37,10 +37,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Install Siskin Builder
-      uses: oldes/install-siskin@v0.21.0
+      uses: oldes/install-siskin@v0.23.3
 
     - name: Build 64bit Rebol/FastNoise2 extension
       run: ./siskin Rebol-FastNoise2.nest -o ./fastnoise2-linux-x64.rebx --gzip fastnoise2-linux-x64
@@ -48,7 +48,7 @@ jobs:
     - name: Minimal Rebol/FastNoise2 extension test
       run:  ./siskin --script ci-test.r3
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         name: Rebol-FastNoise2-Linux-CI-${{github.run_id}}
         path: ./*.gz
@@ -57,10 +57,10 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Install Siskin Builder
-      uses: oldes/install-siskin@v0.21.0
+      uses: oldes/install-siskin@v0.23.3
 
     - name: Build 64bit Rebol/FastNoise2 extension
       run: ./siskin Rebol-FastNoise2.nest -o ./fastnoise2-macos-x64.rebx --gzip fastnoise2-macos-x64
@@ -68,7 +68,7 @@ jobs:
     - name: Minimal Rebol/FastNoise2 extension test
       run:  ./siskin ci-test.r3
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         name: Rebol-FastNoise2-macOS-CI-${{github.run_id}}
         path: ./*.gz
@@ -77,7 +77,7 @@ jobs:
 #    runs-on: ubuntu-latest
 #    steps:
 #      - name: Checkout repository
-#        uses: actions/checkout@v4
+#        uses: actions/checkout@v6
 #
 #      - name: Login to Docker Hub
 #        uses: docker/login-action@v2
@@ -105,7 +105,7 @@ jobs:
 #    runs-on: ubuntu-latest
 #    steps:
 #      - name: Checkout repository
-#        uses: actions/checkout@v4
+#        uses: actions/checkout@v6
 #
 #      - name: Login to Docker Hub
 #        uses: docker/login-action@v2
