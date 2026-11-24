@@ -6,7 +6,7 @@
 ;; FastNoise2 fetches FastSIMD itself (CPMAddPackage) at configure time and
 ;; installs it next to FastNoise: libFastNoise, libFastSIMD_FastNoise (the
 ;; per-CPU dispatch code) and libFastSIMD.
-github: Auburn/FastNoise2 /v1.1.1
+github: @FastNoise2 /v1.1.1
 
 version: 1.1.1
 
